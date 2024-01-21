@@ -1,47 +1,25 @@
 import httpx
 import pytz
-from datetime import datetime, timedelta
-from RecNetLogin.recnetlogin import RecNetLogin
 
-async def create_event(token) -> str:
+async def create_event(token, start_time, end_time) -> (bool, str):
 
     EVENT_ENDPOINT = "https://api.rec.net/api/playerevents/v2"
 
-    def get_event_times():
-        # Get the current time in the Pacific time zone
-        pacific_timezone = pytz.timezone('America/Los_Angeles')
-        current_time = datetime.now(pacific_timezone)
+    # Convert both times to the GMT time zone
+    gmt_timezone = pytz.timezone('GMT')
+    start_time_gmt = start_time.astimezone(gmt_timezone)
+    end_time_gmt = end_time.astimezone(gmt_timezone)
 
-        # Calculate days until the next Friday
-        days_until_friday = (4 - current_time.weekday()) % 7
-        if current_time.hour > 22:
-            days_until_friday += 7
-
-        # Calculate the next Friday at 10:00 PM
-        start_time = current_time.replace(hour=22, minute=0, second=0, microsecond=0) + timedelta(days=days_until_friday)
-
-        # Calculate the end time (2 hours later)
-        end_time = start_time + timedelta(hours=2)
-
-        # Convert both times to the GMT time zone
-        gmt_timezone = pytz.timezone('GMT')
-        start_time_gmt = start_time.astimezone(gmt_timezone)
-        end_time_gmt = end_time.astimezone(gmt_timezone)
-
-        # Format as "EEE, DD MMM YYYY HH:MM:SS GMT"
-        start_time_str = start_time_gmt.strftime("%a, %d %b %Y %H:%M:%S GMT")
-        end_time_str = end_time_gmt.strftime("%a, %d %b %Y %H:%M:%S GMT")
-
-        return start_time_str, end_time_str
-
-    start_time, end_time = get_event_times()
+    # Format as "EEE, DD MMM YYYY HH:MM:SS GMT"
+    start_time_str = start_time_gmt.strftime("%a, %d %b %Y %H:%M:%S GMT")
+    end_time_str = end_time_gmt.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
     payload = {
         "Name": "Party @ Crescent Nightclub",
         "Description": "Come party with us at Crescent Nightclub, one of Rec Room's most prestigious nightclubs.",
         "RoomId": "25357294",
-        "StartTime": start_time,
-        "EndTime": end_time,
+        "StartTime": start_time_str,
+        "EndTime": end_time_str,
         "Accessibility": "0"
     }
 
@@ -51,24 +29,15 @@ async def create_event(token) -> str:
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
-    #return "Test complete."
+    # Uncomment for testing:
+    #return (True, "https://rec.net/event/8410541010311578971")
 
     async with httpx.AsyncClient() as client:
         response = await client.post(EVENT_ENDPOINT, data=payload, headers=headers)
 
     # Check if the request was successful (status code 2xx)
     if response.status_code // 100 == 2:
-        return "Event created!"
+        eventLink = "https://rec.net/event/" + response.json()["PlayerEvent"]["PlayerEventId"]
+        return (True, eventLink)
     else:
-        return f"Error creating event:\n{response}"
-
-
-async def test_create_event():
-    rnl = RecNetLogin()
-    token = rnl.get_token(include_bearer=True)
-    result = await create_event(token)
-    print(result)
-    rnl.close()
-
-import asyncio
-#asyncio.run(test_create_event())
+        return (False, f"{response}")
