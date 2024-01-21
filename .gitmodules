@@ -1,0 +1,3 @@
+[submodule "RecNetLogin"]
+	path = RecNetLogin
+	url = https://github.com/Jegarde/RecNet-Login.git
