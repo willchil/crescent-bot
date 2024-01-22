@@ -4,6 +4,7 @@ import pytz
 async def create_event(token, start_time, end_time) -> (bool, str):
 
     EVENT_ENDPOINT = "https://api.rec.net/api/playerevents/v2"
+    CRESCENT_NIGHTCLUB = 25357294
 
     # Convert both times to the GMT time zone
     gmt_timezone = pytz.timezone('GMT')
@@ -17,10 +18,10 @@ async def create_event(token, start_time, end_time) -> (bool, str):
     payload = {
         "Name": "Party @ Crescent Nightclub",
         "Description": "Come party with us at Crescent Nightclub, one of Rec Room's most prestigious nightclubs.",
-        "RoomId": "25357294",
+        "RoomId": f"{CRESCENT_NIGHTCLUB}",
         "StartTime": start_time_str,
         "EndTime": end_time_str,
-        "Accessibility": "0"
+        "Accessibility": "0" # 1 for public events, 0 for private
     }
 
     headers = {
@@ -30,7 +31,7 @@ async def create_event(token, start_time, end_time) -> (bool, str):
     }
 
     # Uncomment for testing:
-    #return (True, "https://rec.net/event/8410541010311578971")
+    return (True, "https://rec.net/event/8410541010311578971")
 
     async with httpx.AsyncClient() as client:
         response = await client.post(EVENT_ENDPOINT, data=payload, headers=headers)
