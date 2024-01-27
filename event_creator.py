@@ -21,7 +21,7 @@ async def create_event(token, start_time, end_time) -> (bool, str):
         "RoomId": f"{CRESCENT_NIGHTCLUB}",
         "StartTime": start_time_str,
         "EndTime": end_time_str,
-        "Accessibility": "0" # 1 for public events, 0 for private
+        "Accessibility": "1" # 1 for public events, 0 for private
     }
 
     headers = {
@@ -31,7 +31,7 @@ async def create_event(token, start_time, end_time) -> (bool, str):
     }
 
     # Uncomment for testing:
-    return (True, "https://rec.net/event/8410541010311578971")
+    #return (True, "https://rec.net/event/8410541010311578971")
 
     async with httpx.AsyncClient() as client:
         response = await client.post(EVENT_ENDPOINT, data=payload, headers=headers)
