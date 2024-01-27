@@ -34,6 +34,7 @@ async def on_ready():
     guild=discord.Object(id=CRESCENT_MEDIA)
 )
 async def create_event_command(interaction):
+    await interaction.response.defer() # Event creation may take more than 3 seconds
     rnl = RecNetLogin()
     token = rnl.get_token(include_bearer=True)
     (start_time, end_time) = get_event_times(22, 2) # 2 hour event, starting at 10PM
@@ -43,11 +44,11 @@ async def create_event_command(interaction):
         channel = client.get_channel(EVENTS_CHANNEL)
         formatted_time = f"<t:{int(datetime.timestamp(start_time))}:t>"
         message = await channel.send(f"<@&{EVENT_ROLE}> Crescent Nightclub will be hosting an event tonight at {formatted_time}! RSVP and invite your friends below!\n\n{result[1]}")
-        await interaction.response.send_message(f"Event created. {message.jump_url}")
+        await interaction.followup.send(f"Event created. {message.jump_url}")
     else:
         channel = client.get_channel(BOT_CHANNEL)
         message = await channel.send(f"<@&{OWNER_ROLE}> Error creating event:\n```{result[1]}```")
-        await interaction.response.send_message(f"Error creating event. See full response: {message.jump_url}")
+        await interaction.followup.send(f"Error creating event. See full response: {message.jump_url}")
 
 def get_event_times(start_hour, duration) -> (datetime, datetime):
 
