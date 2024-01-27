@@ -38,7 +38,7 @@ async def create_event(token, start_time, end_time) -> (bool, str):
 
     # Check if the request was successful (status code 2xx)
     if response.status_code // 100 == 2:
-        eventLink = "https://rec.net/event/" + response.json()["PlayerEvent"]["PlayerEventId"]
+        eventLink = "https://rec.net/event/" + str(response.json()["PlayerEvent"]["PlayerEventId"])
         return (True, eventLink)
     else:
         return (False, f"{response}")
