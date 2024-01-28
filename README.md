@@ -5,4 +5,5 @@ This project requires a `.env.secret` file in the root directory with the follow
 ```
 BOT_TOKEN={your_bot_token}
 RN_COOKIE={your_recnet_cookie}
+HASH_SALT={your_hash_salt}
 ```

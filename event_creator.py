@@ -1,5 +1,6 @@
 import httpx
 import pytz
+from utility import get_headers
 
 async def create_event(token, start_time, end_time) -> (bool, str):
 
@@ -24,21 +25,15 @@ async def create_event(token, start_time, end_time) -> (bool, str):
         "Accessibility": "1" # 1 for public events, 0 for private
     }
 
-    headers = {
-        "Authorization": token,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
     # Uncomment for testing:
     #return (True, "https://rec.net/event/8410541010311578971")
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(EVENT_ENDPOINT, data=payload, headers=headers)
+        response = await client.post(EVENT_ENDPOINT, data=payload, headers=get_headers(token))
 
     # Check if the request was successful (status code 2xx)
     if response.status_code // 100 == 2:
         eventLink = "https://rec.net/event/" + str(response.json()["PlayerEvent"]["PlayerEventId"])
         return (True, eventLink)
     else:
-        return (False, f"{response}")
+        return (False, f"{response.json()}")
