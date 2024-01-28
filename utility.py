@@ -29,5 +29,25 @@ def get_event_times(start_hour, duration) -> (datetime, datetime):
 
 
 def string_hash(input) -> str:
-    hashcode = abs(hash(input)) % (10 ** 6)
-    return str(hashcode)
+    result = -1  # Step 2: Initialize 'result' to -1
+
+    def rotate_right(val, r_bits):
+        val &= 0xFFFFFFFF  # Ensure it's within 32-bit range
+        r_bits %= 32  # Ensure shift is within bounds
+        rotated_val = ((val >> r_bits) | (val << (32 - r_bits))) & 0xFFFFFFFF  # Perform rotation
+
+        # Convert to signed integer
+        if rotated_val & (1 << (32 - 1)):  # If the sign bit is set
+            rotated_val -= 1 << 32  # Subtract 2**32 to get the negative value
+
+        return rotated_val
+
+    for i in range(len(input)):  # Step 3: For each character in the string
+        ascii_val = ord(input[i])  # Convert the character to its ASCII byte
+        shift_count = (12*i + 7) % 32  # Ensure shift count is between 0 and 31
+        rotated_val = rotate_right(ascii_val, shift_count)
+        result ^= rotated_val  # Step 5: Bit xor with 'result'
+    
+    hex_str = hex(result)[2:]  # Convert 'result' to hexadecimal
+    hex_str = hex_str[:6]  # Ensure the hexadecimal string is 6 digits long
+    return hex_str  # Step 7: Return the hexadecimal string

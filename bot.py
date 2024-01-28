@@ -109,6 +109,8 @@ async def register_command(interaction, username: str):
 
         @discord.ui.button(label="Yes, that's me.", style=discord.ButtonStyle.blurple)
         async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await self.disable_buttons(interaction)
+            
             code = string_hash(username + HASH_SALT)
             msg = (
                 "Enter the code below in ^CrescentNightclub to earn exclusive rewards!\n"
@@ -121,8 +123,16 @@ async def register_command(interaction, username: str):
 
         @discord.ui.button(label="That isn't me!", style=discord.ButtonStyle.red)
         async def deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await self.disable_buttons(interaction)
+
             msg = "Please rerun the `/register` command to finish registering your Rec Room account with the correct username."
             await interaction.response.send_message(msg, ephemeral=True)
+
+        async def disable_buttons(self, interaction):
+            for item in self.children:
+                if isinstance(item, discord.ui.Button):
+                    item.disabled = True
+            await interaction.message.edit(view=self)
 
     await interaction.followup.send(content=confirmation_text, view=confirm_buttons(), ephemeral=True)
 
