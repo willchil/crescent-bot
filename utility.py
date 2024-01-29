@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import pytz
 
 
+@staticmethod
 def get_headers(token) -> str:
     return {
         "Authorization": token,
@@ -10,6 +11,7 @@ def get_headers(token) -> str:
     }
 
 
+@staticmethod
 def get_event_times(start_hour, duration) -> (datetime, datetime):
 
     # Get the current time in the Pacific time zone
@@ -28,6 +30,7 @@ def get_event_times(start_hour, duration) -> (datetime, datetime):
     return (start_time, end_time)
 
 
+@staticmethod
 def string_hash(input) -> str:
     result = -1  # Step 2: Initialize 'result' to -1
 
