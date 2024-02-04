@@ -15,11 +15,11 @@ class EventCog(commands.Cog):
 
     # Register RecNet event creation command
     @app_commands.command(
-        name="event",
-        description="Create a ^CrescentNightclub event at 10:00PM PT."
+        name = "event",
+        description = "Create a ^CrescentNightclub event at 10:00PM PT."
     )
-    @app_commands.guilds(discord.Object(id=CRESCENT_MEDIA))
-    async def create_event(self, interaction: discord.Interaction) -> None:
+    @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
+    async def event(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer() # Event creation may take more than 3 seconds
         rnl = RecNetLogin()
         token = rnl.get_token(include_bearer=True)
@@ -59,7 +59,7 @@ class EventCog(commands.Cog):
 
         payload = {
             "Name": "Party @ Crescent Nightclub",
-            "Description": "Come party with us at Crescent Nightclub, one of Rec Room's most prestigious nightclubs.",
+            "Description": "Come party with us at Crescent Nightclub, one of Rec Room's most prestigious party destinations.",
             "RoomId": f"{CRESCENT_NIGHTCLUB}",
             "StartTime": start_time_str,
             "EndTime": end_time_str,
@@ -81,4 +81,4 @@ class EventCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(EventCog(bot), guilds=[discord.Object(id=CRESCENT_MEDIA)])
+    await bot.add_cog(EventCog(bot), guilds=[discord.Object(id = CRESCENT_MEDIA)])

@@ -1,6 +1,7 @@
 discord.py
 gitpython
 httpx
+pickledb
 psutil
 python-dotenv
 pytz
