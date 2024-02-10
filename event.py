@@ -42,7 +42,7 @@ class EventCog(commands.Cog):
             message = await channel.send(f"Error creating event:\n```{result[1]}```")
             await interaction.followup.send(f"Error creating event. See full response: {message.jump_url}")
 
-    
+    @staticmethod
     async def create_recnet_event(token, start_time, end_time) -> (bool, str):
 
         EVENT_ENDPOINT = "https://api.rec.net/api/playerevents/v2"
