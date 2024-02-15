@@ -12,19 +12,9 @@ class RegisterCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot=bot
         self.db=pickledb.load('user_data.db', True)
-        self.ctx_menu=app_commands.ContextMenu(
-            name='Register Rec Room Account',
-            callback=self.registration_menu,
-            guild_ids=[CRESCENT_MEDIA]
-        )
-        self.bot.tree.add_command(self.ctx_menu)
 
     REC_ID='rec_id'
 
-
-    # Context menu RecNet registration command
-    async def registration_menu(self, interaction: discord.Interaction, user: discord.User):
-        await self.register_validate(interaction, None)
 
     # Register RecNet event creation command
     @app_commands.command(
