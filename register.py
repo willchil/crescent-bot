@@ -14,7 +14,7 @@ class RegisterCog(commands.Cog):
         self.db=pickledb.load('user_data.db', True)
         self.ctx_menu=app_commands.ContextMenu(
             name='Register Rec Room Account',
-            callback=self.registration_menu,  # set the callback of the context menu to "my_cool_context_menu"
+            callback=self.registration_menu,
             guild_ids=[CRESCENT_MEDIA]
         )
         self.bot.tree.add_command(self.ctx_menu)
@@ -22,20 +22,9 @@ class RegisterCog(commands.Cog):
     REC_ID='rec_id'
 
 
+    # Context menu RecNet registration command
     async def registration_menu(self, interaction: discord.Interaction, user: discord.User):
-        class UsernameModal(discord.ui.Modal):
-            def __init__(self, cog: RegisterCog):
-                super().__init__(title="Register your Rec Room account")
-                self.text_input=discord.ui.TextInput(label="Rec Room Username", custom_id="username", placeholder="Enter your Rec Room username")
-                self.add_item(self.text_input)
-                self.cog=cog
-
-            async def on_submit(self, interaction: discord.Interaction):
-                username=self.text_input.value
-                await self.cog.register_internal(interaction, username)
-
-        await interaction.response.send_modal(UsernameModal(self))
-
+        await self.register_validate(interaction, None)
 
     # Register RecNet event creation command
     @app_commands.command(
@@ -46,19 +35,25 @@ class RegisterCog(commands.Cog):
     @app_commands.describe(
         username="Your Rec Room username."
     )
-    async def register(self, interaction: discord.Interaction, username: str) -> None:
-        await self.register_internal(interaction, username)
+    async def register(self, interaction: discord.Interaction, username: str = None) -> None:
+        await self.register_validate(interaction, username)
 
-    async def register_internal(self, interaction: discord.Interaction, username: str) -> None:
-        await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
-        rnl=RecNetLogin()
-        token=rnl.get_token(include_bearer=True)
+
+    # Common method shared between registration command variants
+    async def register_validate(self, interaction: discord.Interaction, username: str) -> None:
 
         # Check if the user already registered their Rec Room account
         discord_id=str(interaction.user.id)
         if self.db.exists(discord_id) and self.db.dexists(discord_id, self.REC_ID):
+
+            await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
+
             rec_id=self.db.dget(discord_id, self.REC_ID)
+
+            rnl=RecNetLogin()
+            token=rnl.get_token(include_bearer=True)
             account=await self.get_account_from_id(rec_id, token)
+            rnl.close()
 
             # Exit if the user encountered an error
             if not account[0]:
@@ -83,8 +78,38 @@ class RegisterCog(commands.Cog):
             )
             await interaction.followup.send(msg, ephemeral=True)
             return
+        
+        # This user has never registered a RecNet account before
+        else:
+
+            # Show the modal input if using the context menu, or username wasn't provided in slash command
+            if not username:
+                class UsernameModal(discord.ui.Modal):
+                    def __init__(self, cog: RegisterCog):
+                        super().__init__(title="Register your Rec Room account")
+                        self.text_input=discord.ui.TextInput(label="Rec Room Username", custom_id="username", placeholder="Enter your Rec Room username")
+                        self.add_item(self.text_input)
+                        self.cog=cog
+
+                    async def on_submit(self, interaction: discord.Interaction):
+                        username=self.text_input.value
+                        await self.cog.register_confirm(interaction, username)
+                        return
+                    
+                await interaction.response.send_modal(UsernameModal(self))
+
+            # Otherwise, if a username was provided, initiate confirmation immediately
+            else:
+                await self.register_confirm(interaction, username)
 
 
+    # Initiate the flow to confirm the user's RecNet account; assumes validation was already performed
+    async def register_confirm(self, interaction: discord.Interaction, username: str) -> None:
+
+        await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
+
+        rnl=RecNetLogin()
+        token=rnl.get_token(include_bearer=True)
         response=await self.get_account_from_name(username, token)
         rnl.close()
 
@@ -125,6 +150,7 @@ class RegisterCog(commands.Cog):
                 msg=RegisterCog.get_key_from_name(username)
                 await interaction.followup.send(msg, ephemeral=True)
 
+                discord_id=str(interaction.user.id)
                 rec_id=int(account['accountId'])
                 user_data=self.db.get(discord_id)
                 if not user_data:
