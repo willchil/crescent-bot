@@ -1,8 +1,34 @@
 from datetime import datetime, timedelta
+from dateutil import parser
 import pytz
 
 
-@staticmethod
+def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
+
+    MAX_HOURS = 4
+    if hours > MAX_HOURS:
+        return (None, None, f"Event cannot be longer than {MAX_HOURS} hours.")
+    elif hours <= 0:
+        return (None, None, "Event duration must be positive.")
+
+    try:
+        start_time = parser.parse(date_time_str)
+    except parser.ParserError:
+        return (None, None, f"Could not parse start time: `{date_time_str}`")
+
+    now = datetime.now()
+    
+    if (start_time.date() < now.date()):
+        return (None, None, f"Start date has already passed: `{start_time}`")
+
+    if start_time.date() == now.date() and start_time.time() < now.time():
+        start_time += timedelta(days=1)
+
+    end_time = start_time + timedelta(hours=hours)
+
+    return start_time, end_time, None
+
+
 def get_headers(token) -> str:
     return {
         "Authorization": token,
@@ -11,26 +37,6 @@ def get_headers(token) -> str:
     }
 
 
-@staticmethod
-def get_event_times(start_hour, duration) -> (datetime, datetime):
-
-    # Get the current time in the Pacific time zone
-    pacific_timezone = pytz.timezone('America/Los_Angeles')
-    current_time = datetime.now(pacific_timezone)
-
-    # Set a date offset if next time is not until tomorrow
-    day_offset = 1 if current_time.hour >= start_hour else 0
-
-    # Calculate the next time it's the start hour
-    start_time = current_time.replace(hour=start_hour, minute=0, second=0, microsecond=0) + timedelta(days=day_offset)
-
-    # Calculate the end time
-    end_time = start_time + timedelta(hours=duration)
-
-    return (start_time, end_time)
-
-
-@staticmethod
 def string_hash(input) -> str:
     result = -1  # Step 2: Initialize 'result' to -1
 

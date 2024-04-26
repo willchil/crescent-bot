@@ -5,3 +5,4 @@ pickledb
 psutil
 python-dotenv
 pytz
+python-dateutil
