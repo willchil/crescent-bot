@@ -3,5 +3,6 @@
   "description": "Come party with us at Crescent Nightclub, one of Rec Room's most prestigious party destinations.",
   "room": "CrescentNightclub",
   "start": "10:00PM",
-  "duration": 3.0
+  "duration": 3.0,
+  "announcement": "Crescent Nightclub will be hosting an event tonight at [TIME]! RSVP and invite your friends below!"
 }

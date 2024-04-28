@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from dateutil import parser
 import pytz
+import httpx
 
 
 def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
@@ -60,3 +61,13 @@ def string_hash(input) -> str:
     hex_str = hex(result)[2:]  # Convert 'result' to hexadecimal
     hex_str = hex_str[:6]  # Ensure the hexadecimal string is 6 digits long
     return hex_str  # Step 7: Return the hexadecimal string
+
+async def get_room_id(room: str) -> int:
+    endpoint = f"https://rooms.rec.net/rooms?name={room}"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(endpoint)
+
+    if response.status_code // 100 == 2:
+        return response.json()["RoomId"]
+    else:
+        return -1

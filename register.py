@@ -26,12 +26,6 @@ class RegisterCog(commands.Cog):
         username="Your Rec Room username."
     )
     async def register(self, interaction: discord.Interaction, username: str = None) -> None:
-        await self.register_validate(interaction, username)
-
-
-    # Common method shared between registration command variants
-    async def register_validate(self, interaction: discord.Interaction, username: str) -> None:
-
         # Check if the user already registered their Rec Room account
         discord_id=str(interaction.user.id)
         if self.db.exists(discord_id) and self.db.dexists(discord_id, self.REC_ID):
