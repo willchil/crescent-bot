@@ -28,7 +28,8 @@ class EventCog(commands.Cog):
         if err:
             await interaction.followup.send(f"Invalid event settings: {err}", ephemeral=True)
         else:
-            await self.create_recnet_event(token, interaction, default_event)
+            event_id = await self.create_recnet_event(token, default_event, interaction)
+            await self.post_announcement(event_id, default_event[KEY_START_DATE], default_event[KEY_ANNOUNCEMENT], interaction)
         rnl.close()
 
     # Register RecNet event creation command
@@ -96,7 +97,8 @@ class EventCog(commands.Cog):
                 else:
                     rnl = RecNetLogin()
                     token = rnl.get_token(include_bearer=True)
-                    await self.cog.create_recnet_event(token, interaction, settings)
+                    event_id = await self.cog.create_recnet_event(token, settings, interaction)
+                    await self.cog.post_announcement(event_id, settings[KEY_START_DATE], settings[KEY_ANNOUNCEMENT], interaction)
                     rnl.close()
                 return
             
@@ -121,7 +123,7 @@ class EventCog(commands.Cog):
             
         await interaction.response.send_modal(CustomEventModal(self, room))
 
-    async def create_recnet_event(self, token, interaction: discord.Interaction, settings):
+    async def create_recnet_event(self, token, settings, interaction: discord.Interaction) -> int:
 
         EVENT_ENDPOINT = "https://api.rec.net/api/playerevents/v2"
 
@@ -150,24 +152,27 @@ class EventCog(commands.Cog):
 
         # Check if the request was successful (status code 2xx)
         if response.status_code // 100 == 2:
-            eventLink = "https://rec.net/event/" + str(response.json()["PlayerEvent"]["PlayerEventId"])
-            channel = self.bot.get_channel(EVENTS_CHANNEL)
-            formatted_time = f"<t:{int(datetime.timestamp(settings[KEY_START_DATE]))}:t>"
-            custom_message = settings[KEY_ANNOUNCEMENT]
-            custom_message = custom_message.replace("[TIME]", formatted_time)
-            message_text = (
-                f"<@&{EVENT_ROLE}> "
-                f"{custom_message}"
-                f"\n\n{eventLink}"
-            )
-            message = await channel.send(message_text)
-            await message.add_reaction('<:crescent_1:1192293419557597316>')
-            await interaction.followup.send(f"Event created. {message.jump_url}", ephemeral=True)
+            return response.json()["PlayerEvent"]["PlayerEventId"]
         
         else:
             channel = self.bot.get_channel(BOT_CHANNEL)
             message = await channel.send(f"Error creating event:\n```{response.json()}```")
             await interaction.followup.send(f"Error creating event. See full response: {message.jump_url}", ephemeral=True)
+            return -1
+
+    async def post_announcement(self, event_id, start_date, announcement, interaction: discord.Interaction):
+        eventLink = f"https://rec.net/event/{event_id}"
+        channel = self.bot.get_channel(EVENTS_CHANNEL)
+        formatted_time = f"<t:{int(datetime.timestamp(start_date))}:t>"
+        custom_message = announcement.replace("[TIME]", formatted_time)
+        message_text = (
+            f"<@&{EVENT_ROLE}> "
+            f"{custom_message}"
+            f"\n\n{eventLink}"
+        )
+        message = await channel.send(message_text)
+        await message.add_reaction('<:crescent_1:1192293419557597316>')
+        await interaction.followup.send(f"Event created. {message.jump_url}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
