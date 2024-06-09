@@ -17,7 +17,7 @@ class EventCog(commands.Cog):
     # Register RecNet event creation command
     @app_commands.command(
         name = "event",
-        description = "Create a ^CrescentNightclub event at 10:00PM PT."
+        description = "Create a ^CrescentNightclub event at 10:00PM PT and post an announcement."
     )
     @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
     async def event(self, interaction: discord.Interaction) -> None:
@@ -43,10 +43,8 @@ class EventCog(commands.Cog):
         class CustomEventModal(discord.ui.Modal):
             def __init__(self, cog: EventCog, room: str):
                 defaults = get_main_template()
-                if not room:
-                    room = defaults[KEY_ROOM]
-                self.room_name = room.replace("^", "")
-                super().__init__(title=f"Create an event in ^{self.room_name}")
+                self.room_name = room.replace("^", "") if room else ""
+                super().__init__(title="Create a custom RecNet event")
                 self.cog = cog
 
                 self.name=discord.ui.TextInput(
@@ -62,6 +60,13 @@ class EventCog(commands.Cog):
                     style=TextStyle.paragraph,
                     required=False
                 )
+                self.room=discord.ui.TextInput(
+                     label="Room",
+                     custom_id=KEY_ROOM,
+                     placeholder=defaults[KEY_ROOM],
+                     default=self.room_name,
+                     required=False
+                 )
                 self.start=discord.ui.TextInput(
                     label="Start time",
                     custom_id=KEY_START,
@@ -74,19 +79,13 @@ class EventCog(commands.Cog):
                     placeholder=str(defaults[KEY_DURATION]),
                     required=False
                 )
-                self.announcement=discord.ui.TextInput(
-                    label="Announcement",
-                    custom_id=KEY_ANNOUNCEMENT,
-                    placeholder=defaults[KEY_ANNOUNCEMENT],
-                    style=TextStyle.paragraph,
-                    required=False
-                )
 
                 self.add_item(self.name)
                 self.add_item(self.description)
+                self.add_item(self.room)
                 self.add_item(self.start)
                 self.add_item(self.duration)
-                self.add_item(self.announcement)
+            
 
             async def on_submit(self, interaction: discord.Interaction):
                 await interaction.response.defer() # Room id lookup may take more than 3 seconds
@@ -100,15 +99,23 @@ class EventCog(commands.Cog):
                     event_id = await self.cog.create_recnet_event(token, settings, interaction)
                     await self.cog.post_announcement(event_id, settings[KEY_START_DATE], settings[KEY_ANNOUNCEMENT], interaction)
                     rnl.close()
-                return
+                    created_text = (
+                        f"**Event created:** {self.cog.get_event_link(event_id)}\n\n"
+                        f"**Name:** {settings[KEY_NAME]}\n"
+                        f"**Description:**\n> {settings[KEY_DESCRIPTION]}\n"
+                        f"**Start:** {self.cog.get_formatted_time(settings[KEY_START_DATE], 'f')}\n"
+                        f"**End:** {self.cog.get_formatted_time(settings[KEY_START_DATE]+timedelta(hours=settings[KEY_DURATION]), 'f')}\n"
+                    )
+                    await interaction.followup.send(content=created_text, ephemeral=False)
             
             async def get_settings(self):
                 settings = { }
-                settings[KEY_ROOM] = self.room_name
                 if self.name.value:
                     settings[KEY_NAME] = self.name.value
                 if self.description.value:
                     settings[KEY_DESCRIPTION] = self.description.value
+                if self.name.value:
+                    settings[KEY_ROOM] = self.room.value
                 if self.start.value:
                     settings[KEY_START] = self.start.value
                 if self.duration.value:
@@ -117,10 +124,29 @@ class EventCog(commands.Cog):
                     except ValueError:
                         return (None, f"Invalid duration value `{self.duration.value}`. Duration must be a number in hours.")
                     settings[KEY_DURATION] = dur
-                if self.announcement.value:
-                    settings[KEY_ANNOUNCEMENT] = self.announcement.value
                 return await process_with_defaults(settings)
             
+        class EventAnnouncementModal(discord.ui.Modal):
+            def __init__(self, cog: EventCog, event_id: int, start_date: int):
+                defaults = get_main_template()
+                self.event_id = event_id
+                self.start_date = start_date
+                super().__init__(title=f"Create an event announcement")
+                self.cog = cog
+
+                self.announcement=discord.ui.TextInput(
+                    label="Announcement",
+                    custom_id=KEY_ANNOUNCEMENT,
+                    placeholder=defaults[KEY_ANNOUNCEMENT],
+                    style=TextStyle.paragraph,
+                    required=False
+                )
+                self.add_item(self.announcement)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.defer() # Room id lookup may take more than 3 seconds
+                await self.cog.post_announcement(self.event_id, self.start_date, self.announcement.value, interaction)
+
         await interaction.response.send_modal(CustomEventModal(self, room))
 
     async def create_recnet_event(self, token, settings, interaction: discord.Interaction) -> int:
@@ -161,9 +187,9 @@ class EventCog(commands.Cog):
             return -1
 
     async def post_announcement(self, event_id, start_date, announcement, interaction: discord.Interaction):
-        eventLink = f"https://rec.net/event/{event_id}"
+        eventLink = self.get_event_link(event_id)
         channel = self.bot.get_channel(EVENTS_CHANNEL)
-        formatted_time = f"<t:{int(datetime.timestamp(start_date))}:t>"
+        formatted_time = self.get_formatted_time(start_date)
         custom_message = announcement.replace("[TIME]", formatted_time)
         message_text = (
             f"<@&{EVENT_ROLE}> "
@@ -173,6 +199,14 @@ class EventCog(commands.Cog):
         message = await channel.send(message_text)
         await message.add_reaction('<:crescent_1:1192293419557597316>')
         await interaction.followup.send(f"Event created. {message.jump_url}", ephemeral=True)
+
+    @staticmethod
+    def get_event_link(event_id: int) -> str:
+        return f"https://rec.net/event/{event_id}"
+    
+    @staticmethod
+    def get_formatted_time(start_date: int, format: str = "t") -> str:
+        return f"<t:{int(datetime.timestamp(start_date))}:{format}>"
 
 
 async def setup(bot: commands.Bot) -> None:
