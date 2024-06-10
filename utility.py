@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil import parser
-import pytz
+from server_constants import DOTENV
 import httpx
-
 
 def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
 
@@ -71,3 +70,16 @@ async def get_room_id(room: str) -> int:
         return response.json()["RoomId"]
     else:
         return -1
+    
+async def get_event_start(event_id: int, token: str) -> datetime:
+    headers = get_headers(token)
+    endpoint = f"https://api.rec.net/api/playerevents/v1/{event_id}"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(endpoint, headers=headers)
+    if response.status_code // 100 == 2:
+        start_str = response.json()["StartTime"]
+        timestamp = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ")
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+        return timestamp
+    else:
+        return None

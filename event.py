@@ -1,7 +1,8 @@
 import discord
 import httpx
 import pytz
-from discord import TextStyle, app_commands
+import re
+from discord import TextStyle, app_commands, Message
 from discord.ext import commands
 from RecNetLogin.recnetlogin import RecNetLogin
 from server_constants import *
@@ -16,7 +17,7 @@ class EventCog(commands.Cog):
 
     # Register RecNet event creation command
     @app_commands.command(
-        name = "event",
+        name = ("debug-" if DEBUG else "") + "event",
         description = "Create a ^CrescentNightclub event at 10:00PM PT and post an announcement."
     )
     @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
@@ -28,13 +29,19 @@ class EventCog(commands.Cog):
         if err:
             await interaction.followup.send(f"Invalid event settings: {err}", ephemeral=True)
         else:
-            event_id = await self.create_recnet_event(token, default_event, interaction)
-            await self.post_announcement(event_id, default_event[KEY_START_DATE], default_event[KEY_ANNOUNCEMENT], interaction)
+            (event_id, created) = await self.create_recnet_event(token, default_event, interaction)
+            if created:
+                announcement = await self.post_announcement(event_id, default_event[KEY_START_DATE], default_event[KEY_ANNOUNCEMENT])
+                response = (
+                    f"Event created: {created.jump_url}\n"
+                    f"Announcement posted: {announcement.jump_url}"
+                )
+                await interaction.followup.send(response, ephemeral=True)
         rnl.close()
 
     # Register RecNet event creation command
     @app_commands.command(
-        name = "custom-event",
+        name = ("debug-" if DEBUG else "") + "custom-event",
         description = "Create an event with custom settings."
     )
     @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
@@ -85,7 +92,7 @@ class EventCog(commands.Cog):
                 self.add_item(self.room)
                 self.add_item(self.start)
                 self.add_item(self.duration)
-            
+
 
             async def on_submit(self, interaction: discord.Interaction):
                 await interaction.response.defer() # Room id lookup may take more than 3 seconds
@@ -96,17 +103,9 @@ class EventCog(commands.Cog):
                 else:
                     rnl = RecNetLogin()
                     token = rnl.get_token(include_bearer=True)
-                    event_id = await self.cog.create_recnet_event(token, settings, interaction)
-                    await self.cog.post_announcement(event_id, settings[KEY_START_DATE], settings[KEY_ANNOUNCEMENT], interaction)
+                    (_, event_message) = await self.cog.create_recnet_event(token, settings, interaction)
                     rnl.close()
-                    created_text = (
-                        f"**Event created:** {self.cog.get_event_link(event_id)}\n\n"
-                        f"**Name:** {settings[KEY_NAME]}\n"
-                        f"**Description:**\n> {settings[KEY_DESCRIPTION]}\n"
-                        f"**Start:** {self.cog.get_formatted_time(settings[KEY_START_DATE], 'f')}\n"
-                        f"**End:** {self.cog.get_formatted_time(settings[KEY_START_DATE]+timedelta(hours=settings[KEY_DURATION]), 'f')}\n"
-                    )
-                    await interaction.followup.send(content=created_text, ephemeral=False)
+                    await interaction.followup.send(content=f"Event created: {event_message.jump_url}", ephemeral=True)
             
             async def get_settings(self):
                 settings = { }
@@ -125,31 +124,77 @@ class EventCog(commands.Cog):
                         return (None, f"Invalid duration value `{self.duration.value}`. Duration must be a number in hours.")
                     settings[KEY_DURATION] = dur
                 return await process_with_defaults(settings)
-            
+
+        await interaction.response.send_modal(CustomEventModal(self, room))
+
+    # Post an announcement for the event linked in the replied post
+    @app_commands.command(
+        name = ("debug-" if DEBUG else "") + "announce-event",
+        description = "Announce the event linked in the replied post."
+    )
+    @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
+    @app_commands.describe(event_link="RecNet link or event id.")
+    async def announce_event(self, interaction: discord.Interaction, event_link: str = None) -> None:
+
         class EventAnnouncementModal(discord.ui.Modal):
-            def __init__(self, cog: EventCog, event_id: int, start_date: int):
-                defaults = get_main_template()
+            def __init__(self, cog: EventCog, event_id: int):
+                self.defaults = get_main_template()
                 self.event_id = event_id
-                self.start_date = start_date
                 super().__init__(title=f"Create an event announcement")
                 self.cog = cog
 
                 self.announcement=discord.ui.TextInput(
                     label="Announcement",
                     custom_id=KEY_ANNOUNCEMENT,
-                    placeholder=defaults[KEY_ANNOUNCEMENT],
+                    placeholder=self.defaults[KEY_ANNOUNCEMENT],
                     style=TextStyle.paragraph,
                     required=False
                 )
                 self.add_item(self.announcement)
 
             async def on_submit(self, interaction: discord.Interaction):
-                await interaction.response.defer() # Room id lookup may take more than 3 seconds
-                await self.cog.post_announcement(self.event_id, self.start_date, self.announcement.value, interaction)
+                await interaction.response.defer() # Event lookup may take more than 3 seconds
+                rnl = RecNetLogin()
+                token = rnl.get_token(include_bearer=True)
+                start_date = await get_event_start(self.event_id, token)
+                rnl.close()
+                if not start_date:
+                    await interaction.followup.send(f"Could not get start date from RecNet for event `{self.event_id}`.", ephemeral=True)
+                    return
+                announcement = await self.cog.post_announcement(self.event_id, start_date, self.announcement.value or self.defaults[KEY_ANNOUNCEMENT])
+                await interaction.followup.send(f"Event announcement posted: {announcement.jump_url}", ephemeral=True)
 
-        await interaction.response.send_modal(CustomEventModal(self, room))
+        def extract_event_id(text: str) -> int:
+            pattern = r"https://rec\.net/event/(\d+)"
+            match = re.search(pattern, text)
+            if match:
+                return int(match.group(1))
+            try:
+                return int(text)
+            except ValueError:
+                return -1
 
-    async def create_recnet_event(self, token, settings, interaction: discord.Interaction) -> int:
+        event_not_found = "No RecNet event found. Reply to a message with a RecNet event link, or include the link in the `event_link` parameter."
+
+        # Get the event link from the replied message if none is provided
+        if not event_link:
+            if interaction.message is None or interaction.message.reference is None:
+                await interaction.response.send_message(event_not_found, ephemeral=True)
+                return
+            replied_message_id = interaction.message.reference.message_id
+            event_link = await interaction.channel.fetch_message(replied_message_id)
+
+        # Parse the event id, and display an error if it's invalid
+        event_id = extract_event_id(event_link)
+        if event_id < 0:
+            interaction.response.send_message(event_not_found, ephemeral=True)
+            return
+        
+        await interaction.response.send_modal(EventAnnouncementModal(self, event_id))
+
+
+
+    async def create_recnet_event(self, token, settings, interaction: discord.Interaction) -> (int, Message):
 
         EVENT_ENDPOINT = "https://api.rec.net/api/playerevents/v2"
 
@@ -170,35 +215,51 @@ class EventCog(commands.Cog):
             "RoomId": f"{room_id}",
             "StartTime": start_time_str,
             "EndTime": end_time_str,
-            "Accessibility": "1" # 1 for public events, 0 for private
+            "Accessibility": f"{0 if DEBUG else 1}" # 1 for public events, 0 for private
         }
+
+        def get_created_text(id: int) -> str:
+            return (
+                f"**Event created:** {self.get_event_link(id)}\n\n"
+                f"**Name:** {settings[KEY_NAME]}\n"
+                f"**Description:**\n> {settings[KEY_DESCRIPTION]}\n"
+                f"**Start:** {self.get_formatted_time(settings[KEY_START_DATE], 'f')}\n"
+                f"**End:** {self.get_formatted_time(settings[KEY_START_DATE]+timedelta(hours=settings[KEY_DURATION]), 'f')}\n"
+            )
+        channel = self.bot.get_channel(BOT_CHANNEL)
+
+        # Don't actually create new event while debugging
+        if DEBUG:
+            return (707287540578574014, await channel.send(get_created_text(707287540578574014)))
 
         async with httpx.AsyncClient() as client:
             response = await client.post(EVENT_ENDPOINT, data=payload, headers=get_headers(token))
 
         # Check if the request was successful (status code 2xx)
         if response.status_code // 100 == 2:
-            return response.json()["PlayerEvent"]["PlayerEventId"]
+            event_id = response.json()["PlayerEvent"]["PlayerEventId"]
+            created_text = get_created_text(event_id)
+            return (event_id, await channel.send(created_text))
         
         else:
-            channel = self.bot.get_channel(BOT_CHANNEL)
-            message = await channel.send(f"Error creating event:\n```{response.json()}```")
+            message = await channel.send(f"Error creating event:\n\n```\n{response.json()}\n```")
             await interaction.followup.send(f"Error creating event. See full response: {message.jump_url}", ephemeral=True)
-            return -1
+            return (-1, None)
 
-    async def post_announcement(self, event_id, start_date, announcement, interaction: discord.Interaction):
+
+    async def post_announcement(self, event_id, start_date, announcement) -> Message:
         eventLink = self.get_event_link(event_id)
         channel = self.bot.get_channel(EVENTS_CHANNEL)
         formatted_time = self.get_formatted_time(start_date)
-        custom_message = announcement.replace("[TIME]", formatted_time)
+        custom_message = announcement.replace("[TIME]", formatted_time).replace("[time]", formatted_time).replace("[Time]", formatted_time)
         message_text = (
             f"<@&{EVENT_ROLE}> "
             f"{custom_message}"
             f"\n\n{eventLink}"
         )
         message = await channel.send(message_text)
-        await message.add_reaction('<:crescent_1:1192293419557597316>')
-        await interaction.followup.send(f"Event created. {message.jump_url}", ephemeral=True)
+        await message.add_reaction(CRESCENT_REACTION)
+        return message
 
     @staticmethod
     def get_event_link(event_id: int) -> str:

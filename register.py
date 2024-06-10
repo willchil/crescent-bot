@@ -18,7 +18,7 @@ class RegisterCog(commands.Cog):
 
     # Register RecNet event creation command
     @app_commands.command(
-        name="register",
+        name=("debug-" if DEBUG else "") + "register",
         description="Register your Rec Room account to earn exclusive rewards!"
     )
     @app_commands.guilds(discord.Object(id=CRESCENT_MEDIA))
