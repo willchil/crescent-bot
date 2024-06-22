@@ -3,7 +3,7 @@ import httpx
 import pickledb
 from discord import app_commands
 from discord.ext import commands
-from RecNetLogin.recnetlogin import RecNetLogin
+from RecNetLogin.src.recnetlogin import RecNetLogin
 from server_constants import *
 from utility import *
 

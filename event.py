@@ -4,7 +4,7 @@ import pytz
 import re
 from discord import TextStyle, app_commands, Message
 from discord.ext import commands
-from RecNetLogin.recnetlogin import RecNetLogin
+from RecNetLogin.src.recnetlogin import RecNetLogin
 from server_constants import *
 from utility import *
 from event_templates import *
