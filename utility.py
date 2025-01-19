@@ -29,11 +29,18 @@ def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
     return start_time, end_time, None
 
 
-def get_headers(token) -> str:
+def get_headers_rnl(token) -> str:
     return {
         "Authorization": token,
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+def get_headers_official(token) -> str:
+    return {
+        'Cache-Control': 'no-cache',
+        'Api-Version': 'v1',
+        'Ocp-Apim-Subscription-Key': token
     }
 
 
@@ -72,7 +79,7 @@ async def get_room_id(room: str) -> int:
         return -1
     
 async def get_event_start(event_id: int, token: str) -> datetime:
-    headers = get_headers(token)
+    headers = get_headers_official(token)
     endpoint = f"https://api.rec.net/api/playerevents/v1/{event_id}"
     async with httpx.AsyncClient() as client:
         response = await client.get(endpoint, headers=headers)

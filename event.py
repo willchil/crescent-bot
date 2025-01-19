@@ -233,7 +233,7 @@ class EventCog(commands.Cog):
             return (707287540578574014, await channel.send(get_created_text(707287540578574014)))
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(EVENT_ENDPOINT, data=payload, headers=get_headers(token))
+            response = await client.post(EVENT_ENDPOINT, data=payload, headers=get_headers_official(token))
 
         # Check if the request was successful (status code 2xx)
         if response.status_code // 100 == 2:

@@ -34,10 +34,7 @@ class RegisterCog(commands.Cog):
 
             rec_id=self.db.dget(discord_id, self.REC_ID)
 
-            rnl=RecNetLogin()
-            token=rnl.get_token(include_bearer=True)
-            account=await self.get_account_from_id(rec_id, token)
-            rnl.close()
+            account=await self.get_account_from_id(rec_id)
 
             # Exit if the user encountered an error
             if not account[0]:
@@ -92,10 +89,7 @@ class RegisterCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
 
-        rnl=RecNetLogin()
-        token=rnl.get_token(include_bearer=True)
-        response=await self.get_account_from_name(username, token)
-        rnl.close()
+        response=await self.get_account_from_name(username)
 
         # Exit if the user encountered an error
         if not response[0]:
@@ -164,27 +158,45 @@ class RegisterCog(commands.Cog):
         salt=DOTENV["HASH_SALT"]
         code=string_hash(username + salt)
         return (
-            "Enter the code below in ^CrescentNightclub to earn exclusive rewards!\n"
+            "Enter the code below in ^CrescentNightclub to access the Discord Suite!\n"
             f"# **`{code}`**"
         )
 
     @staticmethod
-    async def get_account_from_name(username, token) -> (bool, str):
-        account_endpoint=f"https://accounts.rec.net/account?username={username}"
+    async def get_account_from_name(username) -> (bool, str):
 
-        async with httpx.AsyncClient() as client:
-            response=await client.get(account_endpoint, headers=get_headers(token))
+        token=DOTENV["RN_SUBSCRIPTION_KEY"]
+        if token:
+            account_endpoint=f"https://apim.rec.net/public/accounts/?username={username}"
+            async with httpx.AsyncClient() as client:
+                response=await client.get(account_endpoint, headers=get_headers_official(token))
+        else:
+            rnl=RecNetLogin()
+            token=rnl.get_token(include_bearer=True)
+            account_endpoint=f"https://accounts.rec.net/account?username={username}"
+            async with httpx.AsyncClient() as client:
+                response=await client.get(account_endpoint, headers=get_headers_rnl(token))
+            rnl.close()
 
         # Check if the request was successful (status code 2xx)
         success=response.status_code // 100 == 2
         return (success, response.json())
     
     @staticmethod
-    async def get_account_from_id(id, token) -> (bool, str):
-        account_endpoint=f"https://accounts.rec.net/account/{id}"
+    async def get_account_from_id(id) -> (bool, str):
 
-        async with httpx.AsyncClient() as client:
-            response=await client.get(account_endpoint, headers=get_headers(token))
+        token=DOTENV["RN_SUBSCRIPTION_KEY"]
+        if token:
+            account_endpoint=f"https://apim.rec.net/public/accounts/{id}"
+            async with httpx.AsyncClient() as client:
+                response=await client.get(account_endpoint, headers=get_headers_official(token))
+        else:
+            rnl=RecNetLogin()
+            token=rnl.get_token(include_bearer=True)
+            account_endpoint=f"https://accounts.rec.net/account/{id}"
+            async with httpx.AsyncClient() as client:
+                response=await client.get(account_endpoint, headers=get_headers_rnl(token))
+            rnl.close()
 
         # Check if the request was successful (status code 2xx)
         success=response.status_code // 100 == 2
