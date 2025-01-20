@@ -63,9 +63,9 @@ def string_hash(input) -> str:
         shift_count = (12*i + 7) % 32  # Ensure shift count is between 0 and 31
         rotated_val = rotate_right(ascii_val, shift_count)
         result ^= rotated_val  # Step 5: Bit xor with 'result'
-    
-    hex_str = hex(result)[2:]  # Convert 'result' to hexadecimal
-    hex_str = hex_str[:6]  # Ensure the hexadecimal string is 6 digits long
+
+    hex_str = hex(result & 0xFFFFFFFF)[2:] # Convert 'result' to hexadecimal
+    hex_str = hex_str[:6] # Ensure the hexadecimal string is 6 digits long
     return hex_str  # Step 7: Return the hexadecimal string
 
 async def get_room_id(room: str) -> int:
