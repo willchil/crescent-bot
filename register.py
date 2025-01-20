@@ -106,7 +106,8 @@ class RegisterCog(commands.Cog):
         
         account=response[1]
         username=account['username']
-        date_created=datetime.strptime(account['createdAt'], "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%B %d, %Y")
+        timestamp = account['createdAt'][:-1][:24] + 'Z' # Old accounts only have two decimals of second precision
+        date_created=datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%B %d, %Y")
         confirmation_text=(
             "Is this your Rec Room account? Once confirmed, your account cannot be changed. "
             "Note however that it will update automatically if your username changes in the future.\n\n"
