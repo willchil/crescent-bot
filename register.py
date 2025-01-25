@@ -118,9 +118,10 @@ class RegisterCog(commands.Cog):
         )
 
         class ConfirmButtons(discord.ui.View):
-            def __init__(self, db):
+            def __init__(self, db, bot):
                 super().__init__()
                 self.db=db
+                self.bot=bot
 
             @discord.ui.button(label="Yes, that's me.", style=discord.ButtonStyle.blurple)
             async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -137,6 +138,13 @@ class RegisterCog(commands.Cog):
                 user_data[RegisterCog.REC_ID]=rec_id
                 self.db.set(discord_id, user_data)
 
+                registration_channel=self.bot.get_channel(REGISTRATION_CHANNEL)
+                registration_msg=(
+                    f"{interaction.user.mention} has registered their Rec Room username: @{username}.\n"
+                    f"https://rec.net/user/{username}"
+                )
+                await registration_channel.send(registration_msg)
+
             @discord.ui.button(label="That isn't me!", style=discord.ButtonStyle.red)
             async def deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 await self.disable_buttons(interaction)
@@ -152,7 +160,7 @@ class RegisterCog(commands.Cog):
                 await interaction.edit_original_response(view=self)
 
         
-        await interaction.followup.send(content=confirmation_text, view=ConfirmButtons(self.db), ephemeral=True)
+        await interaction.followup.send(content=confirmation_text, view=ConfirmButtons(self.db, self.bot), ephemeral=True)
 
     @staticmethod
     def get_key_from_name(username) -> str:
