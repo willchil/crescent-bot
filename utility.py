@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from server_constants import DOTENV
+from RecNetLogin.src.recnetlogin import RecNetLogin
 import httpx
 
 def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
@@ -78,11 +79,22 @@ async def get_room_id(room: str) -> int:
     else:
         return -1
     
-async def get_event_start(event_id: int, token: str) -> datetime:
-    headers = get_headers_official(token)
-    endpoint = f"https://api.rec.net/api/playerevents/v1/{event_id}"
-    async with httpx.AsyncClient() as client:
-        response = await client.get(endpoint, headers=headers)
+async def get_event_start(event_id: int) -> datetime:
+    token=DOTENV["RN_SUBSCRIPTION_KEY"]
+    if token:
+        headers = get_headers_official(token)
+        endpoint = f"https://apim.rec.net/public/playerevents/{event_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(endpoint, headers=headers)
+    else:
+        rnl = RecNetLogin()
+        token = rnl.get_token(include_bearer=True)
+        headers = get_headers_rnl(token)
+        endpoint = f"https://api.rec.net/api/playerevents/v1/{event_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(endpoint, headers=headers)
+        rnl.close()
+
     if response.status_code // 100 == 2:
         start_str = response.json()["StartTime"]
         timestamp = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ")

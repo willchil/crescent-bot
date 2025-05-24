@@ -101,7 +101,7 @@ class RegisterCog(commands.Cog):
                 f"```{response[1]}```"
             )
             await bot_channel.send(error_log)
-            await interaction.followup.send(f"An error occurred while running this command. Please try again later.", ephermal=True)
+            await interaction.followup.send(f"An error occurred while running this command. Please try again later.", ephemeral=True)
             return
         
         account=response[1]

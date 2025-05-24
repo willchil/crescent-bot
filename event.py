@@ -154,10 +154,7 @@ class EventCog(commands.Cog):
 
             async def on_submit(self, interaction: discord.Interaction):
                 await interaction.response.defer() # Event lookup may take more than 3 seconds
-                rnl = RecNetLogin()
-                token = rnl.get_token(include_bearer=True)
-                start_date = await get_event_start(self.event_id, token)
-                rnl.close()
+                start_date = await get_event_start(self.event_id)
                 if not start_date:
                     await interaction.followup.send(f"Could not get start date from RecNet for event `{self.event_id}`.", ephemeral=True)
                     return
