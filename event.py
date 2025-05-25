@@ -8,6 +8,7 @@ from RecNetLogin.src.recnetlogin import RecNetLogin
 from server_constants import *
 from utility import *
 from event_templates import *
+from register import REC_ID
 
 
 class EventCog(commands.Cog):
@@ -130,7 +131,7 @@ class EventCog(commands.Cog):
     # Post an announcement for the event linked in the replied post
     @app_commands.command(
         name = ("debug-" if DEBUG else "") + "announce-event",
-        description = "Announce the event linked in the replied post."
+        description = "Announce a specified or upcoming event."
     )
     @app_commands.guilds(discord.Object(id = CRESCENT_MEDIA))
     @app_commands.describe(event_link="RecNet link or event id.")
@@ -154,11 +155,12 @@ class EventCog(commands.Cog):
 
             async def on_submit(self, interaction: discord.Interaction):
                 await interaction.response.defer() # Event lookup may take more than 3 seconds
-                start_date = await get_event_start(self.event_id)
+                event_data = await get_event_data(event_id)
+                start_date = get_event_start(event_data)
                 if not start_date:
-                    await interaction.followup.send(f"Could not get start date from RecNet for event `{self.event_id}`.", ephemeral=True)
+                    await interaction.followup.send(f"Could not get start date from RecNet for event `{event_id}`.", ephemeral=True)
                     return
-                announcement = await self.cog.post_announcement(self.event_id, start_date, self.announcement.value or self.defaults[KEY_ANNOUNCEMENT])
+                announcement = await self.cog.post_announcement(event_id, start_date, self.announcement.value or self.defaults[KEY_ANNOUNCEMENT])
                 await interaction.followup.send(f"Event announcement posted: {announcement.jump_url}", ephemeral=True)
 
         def extract_event_id(text: str) -> int:
@@ -167,24 +169,29 @@ class EventCog(commands.Cog):
             if match:
                 return int(match.group(1))
             try:
-                return int(text)
+                return int(text.strip())
             except ValueError:
-                return -1
+                return None
 
-        event_not_found = "No RecNet event found. Reply to a message with a RecNet event link, or include the link in the `event_link` parameter."
 
-        # Get the event link from the replied message if none is provided
-        if not event_link:
-            if interaction.message is None or interaction.message.reference is None:
-                await interaction.response.send_message(event_not_found, ephemeral=True)
-                return
-            replied_message_id = interaction.message.reference.message_id
-            event_link = await interaction.channel.fetch_message(replied_message_id)
+        # If an event link was provided, try to extract the event id from it directly
+        if event_link:
+            event_id = extract_event_id(event_link)
+        else:
+            # Fallback to getting the user's upcoming event if no link is provided
+            discord_id=str(interaction.user.id)
+            if self.bot.user_data.exists(discord_id) and self.bot.user_data.dexists(discord_id, REC_ID):
+                rec_id = self.bot.user_data.dget(discord_id, REC_ID)
+                event_id = await get_next_event_by_player(rec_id)         
 
-        # Parse the event id, and display an error if it's invalid
-        event_id = extract_event_id(event_link)
-        if event_id < 0:
-            interaction.response.send_message(event_not_found, ephemeral=True)
+        # Display an error and return if the event id is invalid
+        if not event_id:
+            await interaction.response.send_message(
+                "No RecNet event found. To announce an event:\n"
+                "- Include the link in the `event_link` parameter, or\n"
+                "- Register your Rec Room account with the `/register` command to automatically find your upcoming RecNet event.",
+                ephemeral=True
+            )
             return
         
         await interaction.response.send_modal(EventAnnouncementModal(self, event_id))

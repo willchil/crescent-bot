@@ -1,19 +1,18 @@
 import discord
 import httpx
-import pickledb
 from discord import app_commands
 from discord.ext import commands
 from RecNetLogin.src.recnetlogin import RecNetLogin
 from server_constants import *
 from utility import *
 
+REC_ID = 'rec_id'
 
 class RegisterCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot=bot
-        self.db=pickledb.load('user_data.db', True)
+        self.user_data=bot.user_data
 
-    REC_ID='rec_id'
 
 
     # Register RecNet event creation command
@@ -28,12 +27,11 @@ class RegisterCog(commands.Cog):
     async def register(self, interaction: discord.Interaction, username: str = None) -> None:
         # Check if the user already registered their Rec Room account
         discord_id=str(interaction.user.id)
-        if self.db.exists(discord_id) and self.db.dexists(discord_id, self.REC_ID):
+        if self.user_data.exists(discord_id) and self.user_data.dexists(discord_id, REC_ID):
+
+            rec_id=self.user_data.dget(discord_id, REC_ID)
 
             await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
-
-            rec_id=self.db.dget(discord_id, self.REC_ID)
-
             account=await self.get_account_from_id(rec_id)
 
             # Exit if the user encountered an error
@@ -63,7 +61,7 @@ class RegisterCog(commands.Cog):
         # This user has never registered a RecNet account before
         else:
 
-            # Show the modal input if using the context menu, or username wasn't provided in slash command
+            # Show the modal input if username wasn't provided in slash command
             if not username:
                 class UsernameModal(discord.ui.Modal):
                     def __init__(self, cog: RegisterCog):
@@ -135,7 +133,7 @@ class RegisterCog(commands.Cog):
                 user_data=self.db.get(discord_id)
                 if not user_data:
                     user_data={}
-                user_data[RegisterCog.REC_ID]=rec_id
+                user_data[REC_ID]=rec_id
                 self.db.set(discord_id, user_data)
 
                 registration_channel=self.bot.get_channel(REGISTRATION_CHANNEL)
@@ -160,7 +158,7 @@ class RegisterCog(commands.Cog):
                 await interaction.edit_original_response(view=self)
 
         
-        await interaction.followup.send(content=confirmation_text, view=ConfirmButtons(self.db, self.bot), ephemeral=True)
+        await interaction.followup.send(content=confirmation_text, view=ConfirmButtons(self.user_data, self.bot), ephemeral=True)
 
     @staticmethod
     def get_key_from_name(username) -> str:

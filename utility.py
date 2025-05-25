@@ -5,7 +5,6 @@ from RecNetLogin.src.recnetlogin import RecNetLogin
 import httpx
 
 def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
-
     MAX_HOURS = 4
     if hours > MAX_HOURS:
         return (None, None, f"Event cannot be longer than {MAX_HOURS} hours.")
@@ -69,6 +68,7 @@ def string_hash(input) -> str:
     hex_str = hex_str[:6] # Ensure the hexadecimal string is 6 digits long
     return hex_str  # Step 7: Return the hexadecimal string
 
+
 async def get_room_id(room: str) -> int:
     endpoint = f"https://rooms.rec.net/rooms?name={room}"
     async with httpx.AsyncClient() as client:
@@ -78,8 +78,9 @@ async def get_room_id(room: str) -> int:
         return response.json()["RoomId"]
     else:
         return -1
-    
-async def get_event_start(event_id: int) -> datetime:
+
+
+async def get_event_data(event_id: int) -> datetime:
     token=DOTENV["RN_SUBSCRIPTION_KEY"]
     if token:
         headers = get_headers_official(token)
@@ -96,9 +97,49 @@ async def get_event_start(event_id: int) -> datetime:
         rnl.close()
 
     if response.status_code // 100 == 2:
-        start_str = response.json()["StartTime"]
-        timestamp = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ")
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-        return timestamp
+        return response.json()
     else:
         return None
+
+
+async def get_next_event_by_player(player_id: int) -> int:
+    token=DOTENV["RN_SUBSCRIPTION_KEY"]
+    if token:
+        headers = get_headers_official(token)
+        endpoint = f"https://apim.rec.net/public/playerevents/creator/{player_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(endpoint, headers=headers)
+    else:
+        rnl = RecNetLogin()
+        token = rnl.get_token(include_bearer=True)
+        headers = get_headers_rnl(token)
+        endpoint = f"https://api.rec.net/api/playerevents/v1/creator/{player_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(endpoint, headers=headers)
+        rnl.close()
+
+    if response.status_code // 100 != 2:
+        return None
+    
+    now = datetime.now(timezone.utc)
+    future_events = [
+        event for event in response.json()
+        if get_event_start(event) > now
+    ]
+    
+    if not future_events:
+        return None
+
+    earliest_event = min(
+        future_events,
+        key=lambda event: get_event_start(event)
+    )
+
+    return int(earliest_event['PlayerEventId'])
+
+
+def get_event_start(event) -> datetime:
+    start_str = event["StartTime"]
+    timestamp = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ")
+    timestamp = timestamp.replace(tzinfo=timezone.utc)
+    return timestamp
