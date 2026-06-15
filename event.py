@@ -180,7 +180,7 @@ class EventCog(commands.Cog):
         else:
             # Fallback to getting the user's upcoming event if no link is provided
             discord_id=str(interaction.user.id)
-            user_record = self.bot.user_data.get(discord_id)
+            user_record = await self.bot.user_data.get(discord_id)
             if user_record and REC_ID in user_record:
                 rec_id = user_record[REC_ID]
                 event_id = await get_next_event_by_player(rec_id)         

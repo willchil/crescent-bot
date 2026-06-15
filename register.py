@@ -32,7 +32,7 @@ class RegisterCog(commands.Cog):
     async def register(self, interaction: discord.Interaction, display_name: str = None) -> None:
         # Check if the user already registered their VRChat account
         discord_id=str(interaction.user.id)
-        user_record = self.user_data.get(discord_id)
+        user_record = await self.user_data.get(discord_id)
         if user_record and VRC_ID in user_record:
 
             vrc_id=user_record[VRC_ID]
