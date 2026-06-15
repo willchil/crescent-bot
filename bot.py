@@ -7,8 +7,7 @@ from discord.ext import commands
 # Initialize client
 intents = discord.Intents.default()
 bot = commands.Bot(intents=intents, command_prefix="/")
-bot.user_data = pickledb.PickleDB('user_data.db')
-bot.user_data.load()
+bot.user_data = pickledb.load('user_data.db', auto_dump=True)
 
 # Define an event handler for the ready event, sync commands with guild
 @bot.event
