@@ -9,6 +9,7 @@ VRCHAT_USERNAME={vrchat_username|email}
 VRCHAT_PASSWORD={vrchat_password}
 GITHUB_TOKEN={github_gist_token}
 HASH_SALT={your_hash_salt}
+CONTACT_EMAIL={your_email}
 ```
 
-`BOT_TOKEN` is the Discord token associated with your bot, and `HASH_SALT` is a cryptographic salt, applied before hashing the username in the `/register` command.
+`BOT_TOKEN` is the Discord token associated with your bot, and `HASH_SALT` is a cryptographic salt, applied before hashing the username in the `/register` command. The GitHub token must have the ability to read and write to GitHub Gists.

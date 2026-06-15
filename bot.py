@@ -15,7 +15,7 @@ bot.user_data.load()
 async def on_ready():
     await bot.load_extension('admin')
     # await bot.load_extension('event')
-    # await bot.load_extension('register')
+    await bot.load_extension('register')
     await bot.load_extension('update_group_roles_cog')
     await bot.tree.sync(guild=discord.Object(id=CRESCENT_MEDIA))
     print(f"Logged in as {bot.user}")
