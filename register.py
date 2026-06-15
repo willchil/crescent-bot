@@ -27,9 +27,10 @@ class RegisterCog(commands.Cog):
     async def register(self, interaction: discord.Interaction, username: str = None) -> None:
         # Check if the user already registered their Rec Room account
         discord_id=str(interaction.user.id)
-        if self.user_data.exists(discord_id) and self.user_data.dexists(discord_id, REC_ID):
+        user_record = await self.user_data.get(discord_id)
+        if user_record and REC_ID in user_record:
 
-            rec_id=self.user_data.dget(discord_id, REC_ID)
+            rec_id=user_record[REC_ID]
 
             await interaction.response.defer(ephemeral=True) # RecNet response may take more than 3 seconds
             account=await self.get_account_from_id(rec_id)
@@ -130,11 +131,12 @@ class RegisterCog(commands.Cog):
 
                 discord_id=str(interaction.user.id)
                 rec_id=int(account['accountId'])
-                user_data=self.db.get(discord_id)
+                user_data=await self.db.get(discord_id)
                 if not user_data:
                     user_data={}
                 user_data[REC_ID]=rec_id
-                self.db.set(discord_id, user_data)
+                await self.db.set(discord_id, user_data)
+                await self.db.save()
 
                 registration_channel=self.bot.get_channel(REGISTRATION_CHANNEL)
                 registration_msg=(

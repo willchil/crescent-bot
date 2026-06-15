@@ -6,3 +6,5 @@ psutil
 python-dotenv
 pytz
 python-dateutil
+vrchatapi
+tzdata
