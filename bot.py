@@ -7,11 +7,12 @@ from discord.ext import commands
 # Initialize client
 intents = discord.Intents.default()
 bot = commands.Bot(intents=intents, command_prefix="/")
+bot.user_data = pickledb.PickleDB('user_data.db')
+bot.user_data.load()
 
 # Define an event handler for the ready event, sync commands with guild
 @bot.event
 async def on_ready():
-    bot.user_data = await pickledb.PickleDB('user_data.db').load()
     await bot.load_extension('admin')
     # await bot.load_extension('event')
     await bot.load_extension('register')
