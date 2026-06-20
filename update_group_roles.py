@@ -12,9 +12,12 @@ Requires GITHUB_TOKEN in .env.secret with the 'gist' scope.
 """
 
 import json
+import logging
 import time
 import urllib.error
 import urllib.request
+
+log = logging.getLogger(__name__)
 
 import vrchatapi
 from vrchatapi.api import groups_api
@@ -82,7 +85,7 @@ def push_to_gist(data: dict, github_token: str | None = None) -> None:
 
     current = gist.get("files", {}).get("roles.json", {}).get("content", "")
     if content == current:
-        print("roles.json is already up to date.")
+        log.info("roles.json is already up to date.")
         return
 
     payload = json.dumps({"files": {"roles.json": {"content": content}}}).encode()
@@ -92,7 +95,7 @@ def push_to_gist(data: dict, github_token: str | None = None) -> None:
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"GitHub API error updating gist ({e.code}): {e.read().decode()}") from e
 
-    print("Updated roles.json on gist.")
+    log.info("Updated roles.json on gist.")
 
 
 # --- Main ---
@@ -114,12 +117,12 @@ def main(code_provider=None):
         if display_name is None:
             display_name = login(client, code_provider=code_provider)
 
-        print(f"Authenticated as: {display_name}\n", flush=True)
-        print(f"Fetching roles for group {GROUP_ID}...", flush=True)
+        log.info("Authenticated as: %s", display_name)
+        log.info("Fetching roles for group %s...", GROUP_ID)
 
         role_map = get_roles(client)
         if not role_map:
-            print("No matching roles found. Check that the role names match exactly.")
+            log.warning("No matching roles found. Check that the role names match exactly.")
             return
 
         by_role: dict[str, list[tuple[str, str]]] = {}
@@ -143,10 +146,11 @@ def main(code_provider=None):
                         seen_in_target.add(user_id)
 
         result = {role_name: sorted((name for _, name in members), key=str.casefold) for role_name, members in by_role.items()}
-        print(json.dumps(result, indent=2))
+        log.info(json.dumps(result, indent=2))
 
         push_to_gist(result, env.get("GITHUB_TOKEN"))
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()

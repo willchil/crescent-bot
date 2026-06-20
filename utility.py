@@ -1,6 +1,9 @@
+import logging
 import re
 import time
 from contextlib import contextmanager
+
+log = logging.getLogger(__name__)
 from datetime import datetime, timedelta, timezone
 
 from dateutil import parser
@@ -13,7 +16,7 @@ from vrchatapi.models import TwoFactorAuthCode, TwoFactorEmailCode
 
 from server_constants import DOTENV
 
-def parse_event_times(date_time_str, hours) -> (datetime, datetime, str):
+def parse_event_times(date_time_str, hours) -> tuple[datetime | None, datetime | None, str | None]:
     MAX_HOURS = 4
     if hours > MAX_HOURS:
         return (None, None, f"Event cannot be longer than {MAX_HOURS} hours.")
@@ -136,7 +139,7 @@ def _vrchat_call(fn, *args, **kwargs):
         except ApiException as e:
             if e.status == 429 and attempt < 3:
                 wait = 2 ** attempt
-                print(f"Rate limited (429), retrying in {wait}s...", flush=True)
+                log.warning("Rate limited (429), retrying in %ss...", wait)
                 time.sleep(wait)
             else:
                 raise
